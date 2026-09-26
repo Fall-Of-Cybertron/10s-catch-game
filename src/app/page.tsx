@@ -445,7 +445,7 @@ export default function Home() {
         )}
       </div>
       {/* Gizli Yönetici Paneli Butonu (Sol Alt Köşe) */}
-      <a href="/admin" className="absolute bottom-0 left-0 w-16 h-16 opacity-0 z-50" title="Yönetici Paneli" />
+      <a href="/admin" className="absolute bottom-0 left-0 w-8 h-8 opacity-0 z-50" />
     </main>
   );
 }
