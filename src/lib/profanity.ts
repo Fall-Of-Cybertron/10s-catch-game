@@ -15,7 +15,8 @@ export const BANNED_WORDS = [
   "götten", "gotten", "amdan", "amciktan", "surtuk", "sürtük", "kavat", "qavat",
   "gavat", "kancık", "kancik", "fahişe", "fahise", "zina", "gay", "lez", "porno",
   "porn", "sex", "seks", "s3x", "am biti", "ambiti", "amcık ağızlı", "amcik agizli",
-  "veled", "velet", "yarrağım", "yarragim", "yarak", "yarağım", "yaragim"
+  "veled", "velet", "yarrağım", "yarragim", "yarak", "yarağım", "yaragim",
+  "yala", "yalayan", "yalarim", "yalarım", "sikici", "sokucu", "emcik", "emcuk"
 ];
 
 // Çok kullanılan harf değişimleri
@@ -68,6 +69,14 @@ export function isProfane(text: string): boolean {
   // 4. KONTROL: Art arda tekrar eden harfleri teke düşür (Örn: "siiiiikkkkk" -> "sik")
   const deduped = stripped.replace(/(.)\1+/g, '$1');
   if (BANNED_WORDS.some(word => deduped.includes(word.replace(/[^a-zçğıöşü]/g, '').replace(/(.)\1+/g, '$1')))) {
+    return true;
+  }
+
+  // 5. KONTROL: Çok kısa ama tehlikeli kelimelerin tek başına kullanımı (Örn: "am", "sik", "piç")
+  // Regex \b ile sadece kendi başına kelime ise yakala (Kamil, Samet, Işık gibi isimleri vurmaması için)
+  const strictWords = ["am", "amk", "sik", "sk", "got", "göt", "pic", "piç", "oc", "oç", "sg"];
+  const wordRegex = new RegExp(`\\b(${strictWords.join('|')})\\b`, 'i');
+  if (wordRegex.test(normalized)) {
     return true;
   }
 

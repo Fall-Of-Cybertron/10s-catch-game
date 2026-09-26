@@ -32,8 +32,18 @@ export async function POST(req: Request) {
 
     const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY);
 
-    // KURAL DEĞİŞİKLİĞİ: Artık ödül almış olsalar bile rekor kırmak için sınırsız oynayabilirler!
-    // Bu yüzden "Hakkınızı doldurdunuz" engelini buradan kaldırdım.
+    // Ban Kontrolü
+    const ip = req.headers.get('x-forwarded-for') || 'unknown';
+    
+    const { data: banData } = await supabase
+      .from('banned_users')
+      .select('id')
+      .or(`identifier.eq.${fingerprint},identifier.eq.${ip}`)
+      .single();
+
+    if (banData) {
+      return NextResponse.json({ error: 'Bu cihaz veya ağ sistemden engellenmiştir.' }, { status: 403 });
+    }
 
     const startTime = new Date().toISOString();
     const messageToSign = `${fingerprint}:${startTime}`;

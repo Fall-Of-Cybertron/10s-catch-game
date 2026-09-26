@@ -69,13 +69,16 @@ export async function POST(req: Request) {
     let isNewBest = false;
     let dbTimeDiff = formattedDiff;
 
+    const ip = req.headers.get('x-forwarded-for') || 'unknown';
+    const userAgent = req.headers.get('user-agent') || 'unknown';
+
     if (existingScore) {
       scoreId = existingScore.id;
       // Eğer yeni skor daha iyiyse (10.00'a daha yakınsa) GÜNCELLE
       if (formattedDiff < existingScore.time_diff) {
         await supabase
           .from('scores')
-          .update({ time_diff: formattedDiff, stopped_time: clientDuration, nickname: nickname.substring(0, 15) })
+          .update({ time_diff: formattedDiff, stopped_time: clientDuration, nickname: nickname.substring(0, 15), ip_address: ip, user_agent: userAgent })
           .eq('id', existingScore.id);
         isNewBest = true;
       } else {
@@ -91,7 +94,9 @@ export async function POST(req: Request) {
           nickname: nickname.substring(0, 15),
           stopped_time: clientDuration,
           time_diff: formattedDiff,
-          is_claimed: false
+          is_claimed: false,
+          ip_address: ip,
+          user_agent: userAgent
         })
         .select('id')
         .single();

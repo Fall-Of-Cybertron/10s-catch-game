@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabase";
-import { ShieldAlert, Trash2, Lock, ArrowLeft } from "lucide-react";
+import { ShieldAlert, Trash2, Lock, ArrowLeft, Ban } from "lucide-react";
 import Link from "next/link";
 
 type Score = {
@@ -11,6 +11,9 @@ type Score = {
   stopped_time: number;
   time_diff: number;
   created_at: string;
+  fingerprint: string;
+  ip_address: string;
+  user_agent: string;
 };
 
 export default function AdminPage() {
@@ -18,14 +21,10 @@ export default function AdminPage() {
   const [pin, setPin] = useState("");
   const [scores, setScores] = useState<Score[]>([]);
   const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState("");
 
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
     if (pin.trim().length > 0) {
-      // PIN'in doğru olup olmadığını silme işlemi yapmadan tam bilemeyiz 
-      // Ancak güvenlik olarak asıl koruma API tarafındadır.
-      // Basitçe giriş izni verip verileri çekiyoruz.
       setIsAuthenticated(true);
       fetchScores();
     }
@@ -38,7 +37,7 @@ export default function AdminPage() {
       .select("*")
       .order("time_diff", { ascending: true })
       .order("created_at", { ascending: true })
-      .limit(50); // İlk 50 skoru getir
+      .limit(50);
 
     if (data) setScores(data);
     setIsLoading(false);
@@ -46,26 +45,35 @@ export default function AdminPage() {
 
   const handleDelete = async (scoreId: string) => {
     if (!confirm("Bu skoru silmek istediğinize emin misiniz? (Liderlik tablosundan anında kalkar)")) return;
-    
     try {
       const res = await fetch("/api/admin/delete", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ scoreId, pin }),
       });
-      
       if (!res.ok) {
-        const data = await res.json();
-        alert(data.error || "Silinemedi");
-        if (res.status === 403) setIsAuthenticated(false); // Yanlış PIN ise başa at
+        if (res.status === 403) setIsAuthenticated(false);
         return;
       }
-      
-      // Başarılıysa listeden çıkar
       setScores(scores.filter(s => s.id !== scoreId));
-    } catch (err) {
-      alert("Bir hata oluştu.");
-    }
+    } catch (err) {}
+  };
+
+  const handleBan = async (identifier: string, type: 'fingerprint' | 'ip') => {
+    if (!identifier || identifier === 'unknown') return alert("Geçersiz kimlik");
+    if (!confirm(`Bu ${type === 'ip' ? 'IP adresini' : 'cihazı'} BANLAMAK istediğinize emin misiniz? Kişinin tüm skorları da silinecektir.`)) return;
+    try {
+      const res = await fetch("/api/admin/ban", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ identifier, pin, type }),
+      });
+      if (!res.ok) {
+        if (res.status === 403) setIsAuthenticated(false);
+        return;
+      }
+      fetchScores();
+    } catch (err) {}
   };
 
   if (!isAuthenticated) {
@@ -85,7 +93,6 @@ export default function AdminPage() {
           <button type="submit" className="w-full bg-red-600 hover:bg-red-700 font-bold py-4 rounded-xl transition-colors">
             GİRİŞ YAP
           </button>
-          
           <Link href="/" className="inline-flex items-center gap-2 mt-6 text-gray-500 hover:text-white transition-colors">
             <ArrowLeft className="w-4 h-4" /> Oyuna Dön
           </Link>
@@ -96,14 +103,13 @@ export default function AdminPage() {
 
   return (
     <div className="min-h-screen bg-[#050505] text-white p-4 md:p-8">
-      <div className="max-w-4xl mx-auto">
-        
+      <div className="max-w-6xl mx-auto">
         <div className="flex items-center justify-between mb-8 pb-4 border-b border-white/10">
           <div className="flex items-center gap-3">
             <Lock className="w-8 h-8 text-red-500" />
             <div>
               <h1 className="text-2xl font-black tracking-widest text-red-500">YÖNETİCİ PANELİ</h1>
-              <p className="text-sm text-gray-400">Uygunsuz isimleri veya hileleri buradan silebilirsiniz.</p>
+              <p className="text-sm text-gray-400">IP takibi, cihaz yasaklama ve uygunsuz isimleri temizleme merkezi.</p>
             </div>
           </div>
           <Link href="/" className="px-4 py-2 bg-white/10 rounded-lg hover:bg-white/20 transition-colors flex items-center gap-2">
@@ -116,13 +122,14 @@ export default function AdminPage() {
             <div className="p-12 text-center text-gray-500">Yükleniyor...</div>
           ) : (
             <div className="overflow-x-auto">
-              <table className="w-full text-left border-collapse">
+              <table className="w-full text-left border-collapse text-sm">
                 <thead>
-                  <tr className="bg-black/50 text-gray-400 text-sm uppercase tracking-wider">
+                  <tr className="bg-black/50 text-gray-400 uppercase tracking-wider">
                     <th className="p-4 font-bold">Sıra</th>
-                    <th className="p-4 font-bold">İsim (Nickname)</th>
+                    <th className="p-4 font-bold">İsim</th>
                     <th className="p-4 font-bold">Zaman</th>
                     <th className="p-4 font-bold">Fark</th>
+                    <th className="p-4 font-bold">IP & Cihaz</th>
                     <th className="p-4 font-bold text-right">İşlem</th>
                   </tr>
                 </thead>
@@ -133,21 +140,41 @@ export default function AdminPage() {
                       <td className="p-4 font-bold text-lg">{score.nickname}</td>
                       <td className="p-4 font-mono text-gray-300">{score.stopped_time.toFixed(3)}s</td>
                       <td className="p-4 font-mono text-indigo-400">±{score.time_diff.toFixed(3)}</td>
+                      <td className="p-4">
+                        <div className="text-xs text-gray-500 font-mono truncate max-w-[200px]" title={score.user_agent}>
+                          IP: {score.ip_address || 'Bilinmiyor'}
+                        </div>
+                      </td>
                       <td className="p-4 text-right">
-                        <button 
-                          onClick={() => handleDelete(score.id)}
-                          className="p-2 bg-red-500/10 text-red-500 hover:bg-red-500 hover:text-white rounded-lg transition-colors inline-flex items-center gap-2"
-                          title="Bu kaydı sil"
-                        >
-                          <Trash2 className="w-5 h-5" />
-                          <span className="sr-only">Sil</span>
-                        </button>
+                        <div className="flex items-center justify-end gap-2">
+                          <button 
+                            onClick={() => handleDelete(score.id)}
+                            className="p-2 bg-gray-500/10 text-gray-400 hover:bg-gray-500 hover:text-white rounded-lg transition-colors"
+                            title="Sadece Skoru Sil"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                          <button 
+                            onClick={() => handleBan(score.ip_address, 'ip')}
+                            className="p-2 bg-orange-500/10 text-orange-500 hover:bg-orange-500 hover:text-white rounded-lg transition-colors flex items-center gap-1"
+                            title="Bu IP Adresini Banla"
+                          >
+                            <Ban className="w-4 h-4" /> IP
+                          </button>
+                          <button 
+                            onClick={() => handleBan(score.fingerprint, 'fingerprint')}
+                            className="p-2 bg-red-500/10 text-red-500 hover:bg-red-500 hover:text-white rounded-lg transition-colors flex items-center gap-1"
+                            title="Bu Cihazı (Fingerprint) Banla"
+                          >
+                            <Ban className="w-4 h-4" /> Cihaz
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   ))}
                   {scores.length === 0 && (
                     <tr>
-                      <td colSpan={5} className="p-8 text-center text-gray-500">Kayıt bulunamadı.</td>
+                      <td colSpan={6} className="p-8 text-center text-gray-500">Kayıt bulunamadı.</td>
                     </tr>
                   )}
                 </tbody>
@@ -155,7 +182,6 @@ export default function AdminPage() {
             </div>
           )}
         </div>
-        
       </div>
     </div>
   );
