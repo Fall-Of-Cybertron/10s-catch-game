@@ -70,9 +70,22 @@ export default function Home() {
     }
 
     fetchLeaderboard();
+    
+    // Eğer isim varsa, kullanıcının kişisel rankını da çek
+    if (savedName && fingerprint) {
+      fetch(`/api/personal-rank?fingerprint=${fingerprint}`)
+        .then(res => res.json())
+        .then(data => {
+          if (data.hasScore) {
+            setRank(data.rank);
+            setTimeDiff(data.timeDiff);
+          }
+        })
+        .catch(console.error);
+    }
 
     return () => window.removeEventListener('resize', checkMobile);
-  }, []);
+  }, [fingerprint]); // fingerprint dependency eklendi
 
   const fetchLeaderboard = async () => {
     const { data } = await supabase
@@ -96,9 +109,27 @@ export default function Home() {
     setGameState("idle");
   };
 
-  const handleChangeName = () => {
+  const handleChangeName = async () => {
+    // Sadece eğer daha önce oynamışsa (skoru/rankı varsa) uyarı ver
+    if (rank !== null) {
+      const confirmDelete = window.confirm("İsminizi değiştirirseniz mevcut rekorunuz ve liderlik tablosundaki yeriniz tamamen silinir. Onaylıyor musunuz?");
+      if (!confirmDelete) return;
+      
+      // Veritabanından eski skoru sil
+      try {
+        await fetch("/api/reset-score", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ fingerprint })
+        });
+      } catch (error) {
+        console.error(error);
+      }
+    }
+
     localStorage.removeItem("game_nickname");
     setNickname("");
+    setRank(null);
     setGameState("name_input");
   };
 
@@ -472,16 +503,16 @@ export default function Home() {
             
             <div className="space-y-4 text-sm text-gray-300">
               <p>
-                <strong className="text-indigo-400">Hedef:</strong> Sayacı tam <strong className="text-white">10.00s</strong>'de durdurmak.
+                <strong className="text-indigo-400">Hedef:</strong> Sayacı tam <strong className="text-white">10.00s</strong>'de durdurmaktır.
               </p>
               <p>
                 <strong className="text-indigo-400">Kurallar:</strong>
               </p>
               <ul className="list-disc pl-5 space-y-2 text-xs text-gray-400">
-                <li>Bir kişi en fazla <strong className="text-white">1 kez</strong> ödül kazanabilir. (Birden fazla kazansan da liderlik tablosunda yerini korursun ama ekstra hediye verilmez.)</li>
-                <li>Ödüller, etkinlik sonundaki <strong className="text-white">İlk 3 (Top 3)</strong> kişiye verilecektir.</li>
-                <li>Liderlik tablosunda yerini garantilemek veya süreni geliştirmek için <strong className="text-white">sınırsız kez</strong> tekrar oynayabilirsin. Her zaman en iyi süren kaydedilir.</li>
-                <li>Sistemi kandırmaya veya hile yapmaya çalışanlar otomatik olarak diskalifiye edilir.</li>
+                <li>Bir kişi en fazla 1 kez ödül kazanabilir.</li>
+                <li>Ödüller etkinlik sonundaki İlk 3 kişiye verilecektir.</li>
+                <li>Rekorunuzu geliştirmek için sınırsız kez oynayabilirsiniz.</li>
+                <li>Hile yapanlar otomatik olarak diskalifiye edilir.</li>
               </ul>
             </div>
 
