@@ -4,9 +4,10 @@ import { useState, useEffect, useRef } from "react";
 import { useFingerprint } from "@/hooks/useFingerprint";
 import { supabase } from "@/lib/supabase";
 import { motion, AnimatePresence } from "framer-motion";
-import { Loader2, ShieldAlert, Trophy, X, ListOrdered } from "lucide-react";
+import { Loader2, ShieldAlert, Trophy, AlertTriangle } from "lucide-react";
+import { isProfane } from "@/lib/profanity";
 
-type GameState = "idle" | "playing" | "loading" | "won" | "lost" | "error";
+type GameState = "name_input" | "idle" | "playing" | "loading" | "won" | "lost" | "error";
 
 type Score = {
   id: string;
@@ -19,13 +20,12 @@ export default function Home() {
   const fingerprint = useFingerprint();
   const [isMobile, setIsMobile] = useState<boolean | null>(null);
   
-  const [gameState, setGameState] = useState<GameState>("idle");
+  const [gameState, setGameState] = useState<GameState>("name_input");
   const [timer, setTimer] = useState<number>(0);
   const [errorMessage, setErrorMessage] = useState("");
   
   const [gameId, setGameId] = useState<string | null>(null);
   const [hmacToken, setHmacToken] = useState<string | null>(null);
-  const [winToken, setWinToken] = useState<string | null>(null);
   
   const [scoreId, setScoreId] = useState<string | null>(null);
   const [stoppedTime, setStoppedTime] = useState<number | null>(null);
@@ -36,11 +36,9 @@ export default function Home() {
   const [staffPin, setStaffPin] = useState("");
   const [isClaimed, setIsClaimed] = useState(false);
   const [rank, setRank] = useState<number | null>(null);
+  const [isNewBest, setIsNewBest] = useState(false);
 
-  // Liderlik tablosu modalı
-  const [isLeaderboardOpen, setIsLeaderboardOpen] = useState(false);
   const [leaderboard, setLeaderboard] = useState<Score[]>([]);
-  const [isLoadingLeaderboard, setIsLoadingLeaderboard] = useState(false);
 
   const requestRef = useRef<number>(0);
   const startTimeRef = useRef<number>(0);
@@ -53,11 +51,19 @@ export default function Home() {
     };
     checkMobile();
     window.addEventListener('resize', checkMobile);
+
+    const savedName = localStorage.getItem("game_nickname");
+    if (savedName) {
+      setNickname(savedName);
+      setGameState("idle");
+    }
+
+    fetchLeaderboard();
+
     return () => window.removeEventListener('resize', checkMobile);
   }, []);
 
   const fetchLeaderboard = async () => {
-    setIsLoadingLeaderboard(true);
     const { data } = await supabase
       .from("scores")
       .select("id, nickname, stopped_time, time_diff")
@@ -66,12 +72,17 @@ export default function Home() {
       .limit(10);
     
     if (data) setLeaderboard(data);
-    setIsLoadingLeaderboard(false);
   };
 
-  const openLeaderboard = () => {
-    fetchLeaderboard();
-    setIsLeaderboardOpen(true);
+  const handleSaveName = () => {
+    if (!nickname.trim()) return;
+    if (isProfane(nickname)) {
+      setErrorMessage("Lütfen uygun bir isim giriniz.");
+      return;
+    }
+    setErrorMessage("");
+    localStorage.setItem("game_nickname", nickname.trim());
+    setGameState("idle");
   };
 
   const updateTimer = () => {
@@ -125,7 +136,7 @@ export default function Home() {
       const res = await fetch("/api/stop", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ gameId, hmacToken, clientDuration, fingerprint }),
+        body: JSON.stringify({ gameId, hmacToken, clientDuration, fingerprint, nickname }),
       });
       const data = await res.json();
 
@@ -137,9 +148,14 @@ export default function Home() {
 
       setStoppedTime(data.stoppedTime);
       setTimeDiff(data.timeDiff);
+      setRank(data.rank);
+      setScoreId(data.scoreId);
+      setIsNewBest(data.isNewBest);
+
+      // Skoru kaydettikten sonra liderlik tablosunu hemen yenile
+      fetchLeaderboard();
 
       if (data.isWin) {
-        setWinToken(data.winToken);
         setGameState("won");
       } else {
         setGameState("lost");
@@ -163,38 +179,6 @@ export default function Home() {
         return prev - 1;
       });
     }, 1000);
-  };
-
-  const handleSaveScore = async () => {
-    if (!nickname.trim()) return;
-    setGameState("loading");
-
-    try {
-      const res = await fetch("/api/save-score", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ fingerprint, nickname, stoppedTime, timeDiff, winToken }),
-      });
-      const data = await res.json();
-      if (!res.ok) {
-        setGameState("error");
-        setErrorMessage(data.error);
-        return;
-      }
-      setScoreId(data.scoreId);
-      fetchRank(data.scoreId);
-    } catch (err) {
-      setGameState("error");
-      setErrorMessage("Skor kaydedilemedi");
-    }
-  };
-
-  const fetchRank = async (sid: string) => {
-    try {
-      const res = await fetch(`/api/rank?id=${sid}`);
-      const data = await res.json();
-      if (res.ok) setRank(data.rank);
-    } catch (err) {}
   };
 
   const handleClaim = async () => {
@@ -241,13 +225,11 @@ export default function Home() {
     return <div className="min-h-screen bg-[#0a0a0a] flex items-center justify-center"><Loader2 className="animate-spin text-white w-8 h-8" /></div>;
   }
 
-  // BİLGİSAYAR GÖRÜNÜMÜ (MODERNİZE EDİLDİ)
+  // BİLGİSAYAR GÖRÜNÜMÜ
   if (isMobile === false) {
     return (
       <div className="min-h-screen bg-[#050505] flex flex-col items-center justify-center p-6 text-center relative overflow-hidden">
-        {/* Subtle background glow */}
         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-blue-600/10 rounded-full blur-[120px] pointer-events-none" />
-        
         <div className="z-10 bg-white/5 border border-white/10 p-10 rounded-3xl backdrop-blur-sm max-w-lg w-full shadow-2xl">
           <div className="bg-red-500/20 w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-6">
             <ShieldAlert className="w-10 h-10 text-red-500" />
@@ -261,8 +243,40 @@ export default function Home() {
     );
   }
 
-  // ÖDÜL EKRANI
-  if (scoreId) {
+  // İSİM GİRİŞ EKRANI
+  if (gameState === "name_input") {
+    return (
+      <main className="min-h-[100dvh] bg-[#0a0a0a] flex flex-col items-center justify-center p-6 relative select-none">
+        <div className="w-full max-w-sm text-center z-10 bg-white/5 p-8 rounded-3xl border border-white/10 backdrop-blur-md">
+          <Trophy className="w-16 h-16 text-indigo-500 mx-auto mb-6" />
+          <h1 className="text-2xl font-black text-white mb-2">Savaşa Katıl</h1>
+          <p className="text-gray-400 text-sm mb-6">Skor tablosunda görünecek adını gir</p>
+          
+          <input 
+            type="text" 
+            maxLength={12}
+            placeholder="Kullanıcı Adı"
+            className="w-full bg-black/40 border border-white/10 rounded-2xl px-4 py-4 text-white text-center font-bold text-lg mb-2 outline-none focus:border-indigo-500 transition-colors"
+            value={nickname}
+            onChange={e => setNickname(e.target.value)}
+            onKeyDown={e => e.key === 'Enter' && handleSaveName()}
+          />
+          {errorMessage && <p className="text-red-400 text-sm font-medium mb-4">{errorMessage}</p>}
+          
+          <button 
+            onClick={handleSaveName}
+            disabled={!nickname.trim()}
+            className="w-full mt-4 bg-indigo-600 disabled:opacity-50 text-white font-black text-xl py-4 rounded-2xl transition-transform active:scale-95"
+          >
+            BAŞLA
+          </button>
+        </div>
+      </main>
+    );
+  }
+
+  // ÖDÜL EKRANI (Kazandı)
+  if (gameState === "won") {
     return (
       <div className="min-h-screen bg-[#051505] flex flex-col items-center justify-center p-6 relative overflow-hidden">
         <motion.div 
@@ -273,7 +287,7 @@ export default function Home() {
         <LiveClock />
         <div className="z-10 bg-black/40 p-8 rounded-3xl border border-green-500/30 backdrop-blur-xl w-full max-w-sm text-center shadow-2xl">
           <Trophy className="w-20 h-20 text-yellow-400 mx-auto mb-4 filter drop-shadow-[0_0_15px_rgba(250,204,21,0.5)]" />
-          <h2 className="text-3xl font-black text-white mb-2 tracking-tight">TEBRİKLER!</h2>
+          <h2 className="text-3xl font-black text-white mb-2 tracking-tight">MÜKEMMEL!</h2>
           <p className="text-green-400 font-mono text-2xl mb-6 font-bold">{stoppedTime?.toFixed(3)}s</p>
           
           {rank && (
@@ -305,6 +319,8 @@ export default function Home() {
               </button>
             </div>
           )}
+          
+          <button onClick={() => setGameState("idle")} className="mt-6 text-sm text-gray-400 underline decoration-gray-600">Geri Dön</button>
         </div>
       </div>
     );
@@ -312,28 +328,56 @@ export default function Home() {
 
   // ANA OYUN EKRANI
   return (
-    <main className="min-h-[100dvh] bg-[#0a0a0a] flex flex-col items-center justify-center p-6 relative select-none overflow-hidden touch-none">
+    <main className="min-h-[100dvh] bg-[#0a0a0a] flex flex-col items-center justify-start pt-4 px-4 pb-8 relative select-none overflow-hidden touch-none">
       
-      {/* Performans dostu modern arkaplan */}
-      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[300px] h-[300px] bg-indigo-600/10 rounded-full blur-[100px] pointer-events-none" />
-
-      {/* Liderlik Tablosu Butonu (Sağ Üst) */}
-      <button 
-        onClick={openLeaderboard}
-        className="absolute top-6 right-6 p-3 bg-white/5 border border-white/10 rounded-full text-white backdrop-blur-md active:scale-90 transition-transform"
-      >
-        <ListOrdered className="w-6 h-6 text-gray-300" />
-      </button>
-
-      <div className="w-full max-w-sm text-center flex flex-col items-center z-10">
-        
-        <div className="mb-10">
-          <h1 className="text-4xl font-black text-white tracking-tighter">10.00</h1>
-          <p className="text-gray-500 text-sm mt-2 font-medium tracking-wide">TAM ZAMANINDA DURDUR</p>
+      {/* LİDERLİK TABLOSU (ÜST KISIM) */}
+      <div className="w-full max-w-sm mb-6 z-10">
+        <div className="bg-white/5 border border-white/10 rounded-3xl p-4 backdrop-blur-sm">
+          <div className="flex items-center justify-between mb-3 px-2">
+            <span className="text-gray-400 text-xs font-bold uppercase tracking-widest flex items-center gap-1">
+              <Trophy className="w-3 h-3" /> TOP 10
+            </span>
+            <span className="text-indigo-400 text-xs font-bold">Hedef: 10.00s</span>
+          </div>
+          
+          <div className="space-y-1.5 h-[160px] overflow-y-auto pr-1">
+            {leaderboard.length === 0 ? (
+              <p className="text-center text-gray-600 text-sm mt-8">Henüz rekor kıran yok.</p>
+            ) : (
+              leaderboard.map((score, index) => (
+                <div key={score.id} className="flex justify-between items-center bg-black/40 px-3 py-2 rounded-xl border border-white/5">
+                  <div className="flex items-center gap-2">
+                    <span className={`text-xs font-black ${index === 0 ? 'text-yellow-400' : index === 1 ? 'text-gray-300' : index === 2 ? 'text-amber-600' : 'text-gray-600'}`}>
+                      {index + 1}
+                    </span>
+                    <span className="text-sm font-bold text-gray-200 truncate max-w-[100px]">{score.nickname}</span>
+                  </div>
+                  <span className="text-xs font-mono text-gray-400">{score.stopped_time.toFixed(3)}s</span>
+                </div>
+              ))
+            )}
+          </div>
+          
+          {/* Kullanıcının Kendi Sırası (Eğer Top 10'da değilse veya sıralaması varsa göster) */}
+          {rank && rank > 10 && (
+             <div className="mt-2 pt-2 border-t border-white/10 flex justify-between items-center bg-indigo-900/30 px-3 py-2 rounded-xl border-indigo-500/30">
+               <div className="flex items-center gap-2">
+                 <span className="text-xs font-black text-indigo-400">{rank}</span>
+                 <span className="text-sm font-bold text-indigo-200">Sen ({nickname})</span>
+               </div>
+               <span className="text-xs font-mono text-indigo-400 font-bold">Fark: {timeDiff?.toFixed(3)}</span>
+             </div>
+          )}
         </div>
+      </div>
 
+      <div className="absolute top-3/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[300px] h-[300px] bg-indigo-600/10 rounded-full blur-[100px] pointer-events-none" />
+
+      {/* OYUN ALANI */}
+      <div className="w-full max-w-sm text-center flex flex-col items-center justify-center flex-1 z-10">
+        
         {/* Sayaç */}
-        <div className="mb-14 font-mono font-black text-[5.5rem] leading-none text-white tracking-tighter tabular-nums drop-shadow-lg">
+        <div className="mb-8 font-mono font-black text-[5.5rem] leading-none text-white tracking-tighter tabular-nums drop-shadow-lg">
           {timer.toFixed(2)}
         </div>
 
@@ -363,18 +407,18 @@ export default function Home() {
           </div>
         )}
 
-        {/* Kaybettin UI */}
+        {/* Sonuç (Kayıp) */}
         {gameState === "lost" && stoppedTime !== null && (
-          <div className="w-full animate-in fade-in slide-in-from-bottom-4">
-            <div className={`font-black text-2xl mb-1 ${getFeedbackColor(stoppedTime)}`}>
+          <div className="w-full animate-in fade-in slide-in-from-bottom-4 mt-2">
+            <div className={`font-black text-xl mb-1 ${getFeedbackColor(stoppedTime)}`}>
               {getFeedbackMessage(stoppedTime)}
             </div>
-            <div className="text-gray-400 font-mono text-lg mb-6">
-              Süre: {stoppedTime.toFixed(3)}s
-            </div>
+            
+            {isNewBest && <div className="text-xs font-bold text-green-400 bg-green-900/30 inline-block px-2 py-1 rounded-md mb-2">Yeni Rekorun!</div>}
+
             <button 
               disabled={cooldown > 0}
-              className={`w-full h-20 transition-all rounded-[1.5rem] font-black text-xl flex items-center justify-center ${
+              className={`w-full h-20 mt-4 transition-all rounded-[1.5rem] font-black text-xl flex items-center justify-center ${
                 cooldown > 0 
                   ? "bg-white/5 text-gray-500 border border-white/10" 
                   : "bg-white text-black active:bg-gray-200 active:scale-95 shadow-[0_6px_0_rgb(163,163,163)]"
@@ -385,87 +429,13 @@ export default function Home() {
           </div>
         )}
 
-        {/* Kazandın UI */}
-        {gameState === "won" && (
-          <div className="w-full animate-in zoom-in-95 duration-200">
-            <div className="bg-green-950/40 border border-green-500/30 p-6 rounded-[2rem] mb-6 backdrop-blur-md">
-              <h3 className="text-green-400 font-black text-2xl mb-1">KAZANDIN!</h3>
-              <p className="text-white text-4xl font-mono font-black mb-6 drop-shadow-md">{stoppedTime?.toFixed(3)}s</p>
-              
-              <input 
-                type="text" 
-                maxLength={12}
-                placeholder="Adın Nedir?"
-                className="w-full bg-black/40 border border-white/10 rounded-2xl px-4 py-4 text-white text-center font-bold text-lg mb-4 outline-none focus:border-green-500 transition-colors"
-                value={nickname}
-                onChange={e => setNickname(e.target.value)}
-              />
-              
-              <button 
-                onClick={handleSaveScore}
-                disabled={!nickname.trim()}
-                className="w-full bg-green-500 disabled:opacity-50 text-black font-black text-xl py-4 rounded-2xl transition-transform active:scale-95"
-              >
-                KAYDET
-              </button>
-            </div>
-          </div>
-        )}
-
         {gameState === "error" && (
-          <div className="mt-8 text-red-400 bg-red-950/30 px-4 py-4 rounded-2xl border border-red-500/20 w-full">
-            <p className="font-medium">{errorMessage}</p>
-            <button onClick={() => setGameState("idle")} className="mt-4 px-6 py-2 bg-white/10 rounded-full text-sm font-bold active:scale-95 transition-transform">Başa Dön</button>
+          <div className="mt-4 text-red-400 bg-red-950/30 px-4 py-4 rounded-2xl border border-red-500/20 w-full">
+            <p className="font-medium text-sm">{errorMessage}</p>
+            <button onClick={() => setGameState("idle")} className="mt-3 px-6 py-2 bg-white/10 rounded-full text-xs font-bold active:scale-95 transition-transform">Başa Dön</button>
           </div>
         )}
       </div>
-
-      {/* Liderlik Tablosu Modalı */}
-      <AnimatePresence>
-        {isLeaderboardOpen && (
-          <motion.div 
-            initial={{ opacity: 0, y: 100 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: 100 }}
-            className="fixed inset-0 z-50 bg-[#0a0a0a] flex flex-col"
-          >
-            <div className="flex items-center justify-between p-6 border-b border-white/5 bg-black/20">
-              <div className="flex items-center gap-3">
-                <Trophy className="w-6 h-6 text-yellow-500" />
-                <h2 className="text-xl font-black text-white">TOP 10</h2>
-              </div>
-              <button onClick={() => setIsLeaderboardOpen(false)} className="p-2 bg-white/5 rounded-full active:scale-90">
-                <X className="w-6 h-6 text-white" />
-              </button>
-            </div>
-            
-            <div className="flex-1 overflow-y-auto p-6">
-              {isLoadingLeaderboard ? (
-                <div className="flex justify-center mt-10"><Loader2 className="w-8 h-8 animate-spin text-white/30" /></div>
-              ) : leaderboard.length === 0 ? (
-                <div className="text-center text-gray-500 mt-10 font-medium">Henüz kimse kazanamadı.</div>
-              ) : (
-                <div className="space-y-3">
-                  {leaderboard.map((score, index) => (
-                    <div key={score.id} className="flex items-center justify-between p-4 bg-white/5 border border-white/5 rounded-2xl">
-                      <div className="flex items-center gap-4">
-                        <span className={`font-black text-lg ${index === 0 ? 'text-yellow-400' : index === 1 ? 'text-gray-300' : index === 2 ? 'text-amber-600' : 'text-gray-500'}`}>
-                          #{index + 1}
-                        </span>
-                        <span className="font-bold text-white text-lg">{score.nickname}</span>
-                      </div>
-                      <div className="text-right">
-                        <div className="font-mono font-bold text-white">{score.stopped_time.toFixed(3)}s</div>
-                        <div className="text-xs text-gray-500 font-mono">Fark: {score.time_diff.toFixed(3)}</div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
     </main>
   );
 }
