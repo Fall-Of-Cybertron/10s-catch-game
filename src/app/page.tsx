@@ -3,8 +3,8 @@
 import { useState, useEffect, useRef } from "react";
 import { useFingerprint } from "@/hooks/useFingerprint";
 import { supabase } from "@/lib/supabase";
-import { motion, AnimatePresence } from "framer-motion";
-import { Loader2, ShieldAlert, Trophy, AlertTriangle } from "lucide-react";
+import { motion } from "framer-motion";
+import { Loader2, ShieldAlert, Trophy } from "lucide-react";
 import { isProfane } from "@/lib/profanity";
 
 type GameState = "name_input" | "idle" | "playing" | "loading" | "won" | "lost" | "error";
@@ -318,6 +318,7 @@ export default function Home() {
                 ONAYLA
               </button>
             </div>
+          )}
           <button 
             onClick={() => setGameState("idle")} 
             className="mt-6 w-full py-4 bg-white/10 hover:bg-white/20 text-white font-bold rounded-2xl transition-colors"
