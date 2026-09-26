@@ -8,6 +8,7 @@ export function useFingerprint() {
     // 1. Önce localStorage'ı kontrol et
     const storedFp = localStorage.getItem('game_fingerprint');
     if (storedFp) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setFingerprint(storedFp);
       return;
     }

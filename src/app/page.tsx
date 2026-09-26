@@ -16,6 +16,16 @@ type Score = {
   time_diff: number;
 };
 
+const LiveClock = () => {
+  const [time, setTime] = useState("");
+  useEffect(() => {
+    setTime(new Date().toLocaleTimeString());
+    const int = setInterval(() => setTime(new Date().toLocaleTimeString()), 1000);
+    return () => clearInterval(int);
+  }, []);
+  return <div className="absolute top-4 right-4 bg-black/50 backdrop-blur-md px-3 py-1 rounded-full text-xs font-mono text-white/80 border border-white/10">{time}</div>;
+};
+
 export default function Home() {
   const fingerprint = useFingerprint();
   const [isMobile, setIsMobile] = useState<boolean | null>(null);
@@ -118,7 +128,8 @@ export default function Home() {
       
       startTimeRef.current = performance.now();
       requestRef.current = requestAnimationFrame(updateTimer);
-    } catch (err) {
+    } catch (error) {
+      console.error(error);
       setGameState("error");
       setErrorMessage("Bağlantı hatası");
     }
@@ -161,7 +172,8 @@ export default function Home() {
         setGameState("lost");
         startCooldown();
       }
-    } catch (err) {
+    } catch (error) {
+      console.error(error);
       setGameState("error");
       setErrorMessage("Durdurma sırasında hata oluştu");
     }
@@ -191,18 +203,10 @@ export default function Home() {
       });
       if (res.ok) setIsClaimed(true);
       else alert("Yanlış PIN");
-    } catch (err) {
+    } catch (error) {
+      console.error(error);
       alert("Hata");
     }
-  };
-
-  const LiveClock = () => {
-    const [time, setTime] = useState(new Date().toLocaleTimeString());
-    useEffect(() => {
-      const int = setInterval(() => setTime(new Date().toLocaleTimeString()), 1000);
-      return () => clearInterval(int);
-    }, []);
-    return <div className="absolute top-4 right-4 bg-black/50 backdrop-blur-md px-3 py-1 rounded-full text-xs font-mono text-white/80 border border-white/10">{time}</div>;
   };
 
   const getFeedbackMessage = (time: number) => {
