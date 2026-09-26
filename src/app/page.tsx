@@ -213,7 +213,7 @@ export default function Home() {
     if (time < 9.00) return "Çok erken!";
     if (time < 9.80) return "Erken bastın!";
     if (time < 9.95) return "Çok yaklaştın!";
-    if (time <= 10.05) return "MÜKEMMEL!";
+    if (time <= 10.05) return "KAZANDINIZ!";
     if (time <= 10.20) return "Çok yaklaştın!";
     if (time < 11.00) return "Geç kaldın!";
     return "Neyi bekliyorsun?";
@@ -291,7 +291,7 @@ export default function Home() {
         <LiveClock />
         <div className="z-10 bg-black/40 p-8 rounded-3xl border border-green-500/30 backdrop-blur-xl w-full max-w-sm text-center shadow-2xl">
           <Trophy className="w-20 h-20 text-yellow-400 mx-auto mb-4 filter drop-shadow-[0_0_15px_rgba(250,204,21,0.5)]" />
-          <h2 className="text-3xl font-black text-white mb-2 tracking-tight">MÜKEMMEL!</h2>
+          <h2 className="text-3xl font-black text-white mb-2 tracking-tight">KAZANDINIZ!</h2>
           <p className="text-green-400 font-mono text-2xl mb-6 font-bold">{stoppedTime?.toFixed(3)}s</p>
           
           {rank && (
@@ -444,6 +444,8 @@ export default function Home() {
           </div>
         )}
       </div>
+      {/* Gizli Yönetici Paneli Butonu (Sol Alt Köşe) */}
+      <a href="/admin" className="absolute bottom-0 left-0 w-16 h-16 opacity-0 z-50" title="Yönetici Paneli" />
     </main>
   );
 }
