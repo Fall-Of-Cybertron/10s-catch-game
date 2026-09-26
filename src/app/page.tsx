@@ -318,9 +318,12 @@ export default function Home() {
                 ONAYLA
               </button>
             </div>
-          )}
-          
-          <button onClick={() => setGameState("idle")} className="mt-6 text-sm text-gray-400 underline decoration-gray-600">Geri Dön</button>
+          <button 
+            onClick={() => setGameState("idle")} 
+            className="mt-6 w-full py-4 bg-white/10 hover:bg-white/20 text-white font-bold rounded-2xl transition-colors"
+          >
+            REKOR İÇİN TEKRAR OYNA
+          </button>
         </div>
       </div>
     );

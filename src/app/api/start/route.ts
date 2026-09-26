@@ -32,20 +32,10 @@ export async function POST(req: Request) {
 
     const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY);
 
-    // Daha önceden ödül almış mı kontrol et
-    const { data: existingWin } = await supabase
-      .from('scores')
-      .select('id')
-      .eq('fingerprint', fingerprint)
-      .eq('is_claimed', true)
-      .single();
-
-    if (existingWin) {
-      return NextResponse.json({ error: 'Hakkınızı doldurdunuz.' }, { status: 403 });
-    }
+    // KURAL DEĞİŞİKLİĞİ: Artık ödül almış olsalar bile rekor kırmak için sınırsız oynayabilirler!
+    // Bu yüzden "Hakkınızı doldurdunuz" engelini buradan kaldırdım.
 
     const startTime = new Date().toISOString();
-    // HMAC imzası, istemciye verilecek ve durdurmada istenecek
     const messageToSign = `${fingerprint}:${startTime}`;
     const hmacToken = await generateHMAC(messageToSign);
 
@@ -64,9 +54,7 @@ export async function POST(req: Request) {
     return NextResponse.json({ 
       success: true, 
       gameId: data.id, 
-      hmacToken,
-      // We don't send startTime to client to prevent them from tampering, 
-      // but they can track their own time
+      hmacToken
     });
   } catch (error: any) {
     console.error('Start API Error:', error);

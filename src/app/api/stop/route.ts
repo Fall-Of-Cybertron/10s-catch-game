@@ -8,7 +8,8 @@ const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY!;
 
 // Zorluk Seviyesi (Kazanma Toleransı)
-const WIN_TOLERANCE = 0.05;
+// 0.05 çok kolay gelirse bunu 0.02 (Çok Zor) veya 0.03 (Zor) yapabiliriz.
+const WIN_TOLERANCE = 0.02;
 
 export async function POST(req: Request) {
   try {
