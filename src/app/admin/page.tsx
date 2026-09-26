@@ -16,17 +16,26 @@ type Score = {
   user_agent: string;
 };
 
+type BannedUser = {
+  id: string;
+  identifier: string;
+  created_at: string;
+};
+
 export default function AdminPage() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [pin, setPin] = useState("");
   const [scores, setScores] = useState<Score[]>([]);
+  const [bannedUsers, setBannedUsers] = useState<BannedUser[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [activeTab, setActiveTab] = useState<'scores' | 'banned'>('scores');
 
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
     if (pin.trim().length > 0) {
       setIsAuthenticated(true);
       fetchScores();
+      fetchBannedUsers(pin);
     }
   };
 
@@ -41,6 +50,16 @@ export default function AdminPage() {
 
     if (data) setScores(data);
     setIsLoading(false);
+  };
+
+  const fetchBannedUsers = async (currentPin: string) => {
+    try {
+      const res = await fetch(`/api/admin/unban?pin=${currentPin}`);
+      if (res.ok) {
+        const { data } = await res.json();
+        if (data) setBannedUsers(data);
+      }
+    } catch (err) {}
   };
 
   const handleDelete = async (scoreId: string) => {
@@ -73,6 +92,23 @@ export default function AdminPage() {
         return;
       }
       fetchScores();
+      fetchBannedUsers(pin);
+    } catch (err) {}
+  };
+
+  const handleUnban = async (identifier: string) => {
+    if (!confirm("Bu yasağı kaldırmak istediğinize emin misiniz?")) return;
+    try {
+      const res = await fetch("/api/admin/unban", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ identifier, pin }),
+      });
+      if (res.ok) {
+        setBannedUsers(bannedUsers.filter(b => b.identifier !== identifier));
+      } else {
+        if (res.status === 403) setIsAuthenticated(false);
+      }
     } catch (err) {}
   };
 
@@ -117,68 +153,116 @@ export default function AdminPage() {
           </Link>
         </div>
 
+        <div className="flex gap-4 mb-6">
+          <button 
+            onClick={() => setActiveTab('scores')}
+            className={`px-6 py-3 rounded-xl font-bold transition-colors ${activeTab === 'scores' ? 'bg-red-600 text-white' : 'bg-white/5 text-gray-400 hover:bg-white/10'}`}
+          >
+            Liderlik Tablosu
+          </button>
+          <button 
+            onClick={() => setActiveTab('banned')}
+            className={`px-6 py-3 rounded-xl font-bold transition-colors ${activeTab === 'banned' ? 'bg-red-600 text-white' : 'bg-white/5 text-gray-400 hover:bg-white/10'}`}
+          >
+            Engellenenler ({bannedUsers.length})
+          </button>
+        </div>
+
         <div className="bg-white/5 border border-white/10 rounded-2xl overflow-hidden">
-          {isLoading ? (
+          {isLoading && activeTab === 'scores' ? (
             <div className="p-12 text-center text-gray-500">Yükleniyor...</div>
           ) : (
             <div className="overflow-x-auto">
-              <table className="w-full text-left border-collapse text-sm">
-                <thead>
-                  <tr className="bg-black/50 text-gray-400 uppercase tracking-wider">
-                    <th className="p-4 font-bold">Sıra</th>
-                    <th className="p-4 font-bold">İsim</th>
-                    <th className="p-4 font-bold">Zaman</th>
-                    <th className="p-4 font-bold">Fark</th>
-                    <th className="p-4 font-bold">IP & Cihaz</th>
-                    <th className="p-4 font-bold text-right">İşlem</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {scores.map((score, index) => (
-                    <tr key={score.id} className="border-t border-white/5 hover:bg-white/[0.02] transition-colors">
-                      <td className="p-4 text-gray-400 font-mono">#{index + 1}</td>
-                      <td className="p-4 font-bold text-lg">{score.nickname}</td>
-                      <td className="p-4 font-mono text-gray-300">{score.stopped_time.toFixed(3)}s</td>
-                      <td className="p-4 font-mono text-indigo-400">±{score.time_diff.toFixed(3)}</td>
-                      <td className="p-4">
-                        <div className="text-xs text-gray-500 font-mono truncate max-w-[200px]" title={score.user_agent}>
-                          IP: {score.ip_address || 'Bilinmiyor'}
-                        </div>
-                      </td>
-                      <td className="p-4 text-right">
-                        <div className="flex items-center justify-end gap-2">
-                          <button 
-                            onClick={() => handleDelete(score.id)}
-                            className="p-2 bg-gray-500/10 text-gray-400 hover:bg-gray-500 hover:text-white rounded-lg transition-colors"
-                            title="Sadece Skoru Sil"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </button>
-                          <button 
-                            onClick={() => handleBan(score.ip_address, 'ip')}
-                            className="p-2 bg-orange-500/10 text-orange-500 hover:bg-orange-500 hover:text-white rounded-lg transition-colors flex items-center gap-1"
-                            title="Bu IP Adresini Banla"
-                          >
-                            <Ban className="w-4 h-4" /> IP
-                          </button>
-                          <button 
-                            onClick={() => handleBan(score.fingerprint, 'fingerprint')}
-                            className="p-2 bg-red-500/10 text-red-500 hover:bg-red-500 hover:text-white rounded-lg transition-colors flex items-center gap-1"
-                            title="Bu Cihazı (Fingerprint) Banla"
-                          >
-                            <Ban className="w-4 h-4" /> Cihaz
-                          </button>
-                        </div>
-                      </td>
+              {activeTab === 'scores' ? (
+                <table className="w-full text-left border-collapse text-sm">
+                  <thead>
+                    <tr className="bg-black/50 text-gray-400 uppercase tracking-wider">
+                      <th className="p-4 font-bold">Sıra</th>
+                      <th className="p-4 font-bold">İsim</th>
+                      <th className="p-4 font-bold">Zaman</th>
+                      <th className="p-4 font-bold">Fark</th>
+                      <th className="p-4 font-bold">IP & Cihaz</th>
+                      <th className="p-4 font-bold text-right">İşlem</th>
                     </tr>
-                  ))}
-                  {scores.length === 0 && (
-                    <tr>
-                      <td colSpan={6} className="p-8 text-center text-gray-500">Kayıt bulunamadı.</td>
+                  </thead>
+                  <tbody>
+                    {scores.map((score, index) => (
+                      <tr key={score.id} className="border-t border-white/5 hover:bg-white/[0.02] transition-colors">
+                        <td className="p-4 text-gray-400 font-mono">#{index + 1}</td>
+                        <td className="p-4 font-bold text-lg">{score.nickname}</td>
+                        <td className="p-4 font-mono text-gray-300">{score.stopped_time.toFixed(3)}s</td>
+                        <td className="p-4 font-mono text-indigo-400">±{score.time_diff.toFixed(3)}</td>
+                        <td className="p-4">
+                          <div className="text-xs text-gray-500 font-mono truncate max-w-[200px]" title={score.user_agent}>
+                            IP: {score.ip_address || 'Bilinmiyor'}
+                          </div>
+                        </td>
+                        <td className="p-4 text-right">
+                          <div className="flex items-center justify-end gap-2">
+                            <button 
+                              onClick={() => handleDelete(score.id)}
+                              className="p-2 bg-gray-500/10 text-gray-400 hover:bg-gray-500 hover:text-white rounded-lg transition-colors"
+                              title="Sadece Skoru Sil"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                            <button 
+                              onClick={() => handleBan(score.ip_address, 'ip')}
+                              className="p-2 bg-orange-500/10 text-orange-500 hover:bg-orange-500 hover:text-white rounded-lg transition-colors flex items-center gap-1"
+                              title="Bu IP Adresini Banla"
+                            >
+                              <Ban className="w-4 h-4" /> IP
+                            </button>
+                            <button 
+                              onClick={() => handleBan(score.fingerprint, 'fingerprint')}
+                              className="p-2 bg-red-500/10 text-red-500 hover:bg-red-500 hover:text-white rounded-lg transition-colors flex items-center gap-1"
+                              title="Bu Cihazı (Fingerprint) Banla"
+                            >
+                              <Ban className="w-4 h-4" /> Cihaz
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                    {scores.length === 0 && (
+                      <tr>
+                        <td colSpan={6} className="p-8 text-center text-gray-500">Kayıt bulunamadı.</td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              ) : (
+                <table className="w-full text-left border-collapse text-sm">
+                  <thead>
+                    <tr className="bg-black/50 text-gray-400 uppercase tracking-wider">
+                      <th className="p-4 font-bold">Engellenen Kimlik (IP / Fingerprint)</th>
+                      <th className="p-4 font-bold">Engellenme Tarihi</th>
+                      <th className="p-4 font-bold text-right">İşlem</th>
                     </tr>
-                  )}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody>
+                    {bannedUsers.map((banned) => (
+                      <tr key={banned.id} className="border-t border-white/5 hover:bg-white/[0.02] transition-colors">
+                        <td className="p-4 font-mono text-red-400 font-bold">{banned.identifier}</td>
+                        <td className="p-4 text-gray-400">{new Date(banned.created_at).toLocaleString('tr-TR')}</td>
+                        <td className="p-4 text-right">
+                          <button 
+                            onClick={() => handleUnban(banned.identifier)}
+                            className="px-4 py-2 bg-green-500/10 text-green-500 hover:bg-green-500 hover:text-white rounded-lg transition-colors font-bold"
+                          >
+                            Yasağı Kaldır
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                    {bannedUsers.length === 0 && (
+                      <tr>
+                        <td colSpan={3} className="p-8 text-center text-gray-500">Yasaklı kimse yok.</td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              )}
             </div>
           )}
         </div>
