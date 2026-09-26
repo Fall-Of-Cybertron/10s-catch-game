@@ -48,6 +48,7 @@ export default function Home() {
   const [rank, setRank] = useState<number | null>(null);
   const [isNewBest, setIsNewBest] = useState(false);
 
+  const [isRulesOpen, setIsRulesOpen] = useState(false);
   const [leaderboard, setLeaderboard] = useState<Score[]>([]);
 
   const requestRef = useRef<number>(0);
@@ -93,6 +94,12 @@ export default function Home() {
     setErrorMessage("");
     localStorage.setItem("game_nickname", nickname.trim());
     setGameState("idle");
+  };
+
+  const handleChangeName = () => {
+    localStorage.removeItem("game_nickname");
+    setNickname("");
+    setGameState("name_input");
   };
 
   const updateTimer = () => {
@@ -212,15 +219,15 @@ export default function Home() {
   const getFeedbackMessage = (time: number) => {
     if (time < 9.00) return "Çok erken!";
     if (time < 9.80) return "Erken bastın!";
-    if (time < 9.95) return "Çok yaklaştın!";
-    if (time <= 10.05) return "KAZANDINIZ!";
+    if (time < 9.985) return "Çok yaklaştın!";
+    if (time <= 10.015) return "KAZANDINIZ!";
     if (time <= 10.20) return "Çok yaklaştın!";
     if (time < 11.00) return "Geç kaldın!";
     return "Neyi bekliyorsun?";
   };
 
   const getFeedbackColor = (time: number) => {
-    if (time >= 9.95 && time <= 10.05) return "text-green-400";
+    if (time >= 9.985 && time <= 10.015) return "text-green-400";
     if (time >= 9.80 && time <= 10.20) return "text-yellow-400";
     return "text-red-400";
   };
@@ -376,6 +383,16 @@ export default function Home() {
                <span className="text-xs font-mono text-indigo-400 font-bold">Fark: {timeDiff?.toFixed(3)}</span>
              </div>
           )}
+
+          {/* Aksiyon Butonları */}
+          <div className="mt-3 pt-3 border-t border-white/10 flex justify-between items-center px-2">
+            <button onClick={() => setIsRulesOpen(true)} className="text-[10px] text-indigo-400 font-bold uppercase tracking-widest active:scale-95 transition-transform">
+              Nasıl Oynanır?
+            </button>
+            <button onClick={handleChangeName} className="text-[10px] text-gray-500 font-bold uppercase tracking-widest active:scale-95 transition-transform">
+              İsim Değiştir
+            </button>
+          </div>
         </div>
       </div>
 
@@ -446,6 +463,37 @@ export default function Home() {
       </div>
       {/* Gizli Yönetici Paneli Butonu (Sol Alt Köşe) */}
       <a href="/admin" className="absolute bottom-0 left-0 w-8 h-8 opacity-0 z-50" />
+
+      {/* KURALLAR MODALI */}
+      {isRulesOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
+          <div className="bg-[#111] border border-white/10 p-6 rounded-3xl max-w-sm w-full shadow-2xl relative">
+            <h2 className="text-xl font-black text-white mb-4 tracking-wider">NASIL OYNANIR?</h2>
+            
+            <div className="space-y-4 text-sm text-gray-300">
+              <p>
+                <strong className="text-indigo-400">Hedef:</strong> Sayacı tam <strong className="text-white">10.00s</strong>'de durdurmak.
+              </p>
+              <p>
+                <strong className="text-indigo-400">Kurallar:</strong>
+              </p>
+              <ul className="list-disc pl-5 space-y-2 text-xs text-gray-400">
+                <li>Bir kişi en fazla <strong className="text-white">1 kez</strong> ödül kazanabilir. (Birden fazla kazansan da liderlik tablosunda yerini korursun ama ekstra hediye verilmez.)</li>
+                <li>Ödüller, etkinlik sonundaki <strong className="text-white">İlk 3 (Top 3)</strong> kişiye verilecektir.</li>
+                <li>Liderlik tablosunda yerini garantilemek veya süreni geliştirmek için <strong className="text-white">sınırsız kez</strong> tekrar oynayabilirsin. Her zaman en iyi süren kaydedilir.</li>
+                <li>Sistemi kandırmaya veya hile yapmaya çalışanlar otomatik olarak diskalifiye edilir.</li>
+              </ul>
+            </div>
+
+            <button 
+              onClick={() => setIsRulesOpen(false)} 
+              className="mt-8 w-full py-3 bg-white/10 hover:bg-white/20 text-white font-bold rounded-xl transition-colors active:scale-95"
+            >
+              ANLADIM
+            </button>
+          </div>
+        </div>
+      )}
     </main>
   );
 }
