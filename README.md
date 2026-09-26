@@ -3,6 +3,8 @@
   <p><strong>Mükemmel Refleks, Kusursuz Zamanlama!</strong></p>
   
   [![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2FFall-Of-Cybertron%2F10s-catch-game)
+  <br/>
+  <sub>*(Yazılımcılar için: Projeyi açık kaynak olarak kendi Vercel hesabınıza klonlayabilirsiniz)*</sub>
 </div>
 
 <br/>
