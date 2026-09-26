@@ -16,7 +16,10 @@ export const BANNED_WORDS = [
   "gavat", "kancık", "kancik", "fahişe", "fahise", "zina", "gay", "lez", "porno",
   "porn", "sex", "seks", "s3x", "am biti", "ambiti", "amcık ağızlı", "amcik agizli",
   "veled", "velet", "yarrağım", "yarragim", "yarak", "yarağım", "yaragim",
-  "yala", "yalayan", "yalarim", "yalarım", "sikici", "sokucu", "emcik", "emcuk"
+  "yala", "yalayan", "yalarim", "yalarım", "sikici", "sokucu", "emcik", "emcuk",
+  "amsuyu", "am suyu", "amyalayan", "yrrk", "yrk", "yrrak", "yarakkafa", "yarrakkafa",
+  "amkafasi", "amkafa", "mq", "amq", "amqq", "amkk", "orsp", "orspu", "pzv",
+  "skk", "sokuk", "sikik", "gotu", "götu", "götü", "götten", "gotten", "amdan"
 ];
 
 // Çok kullanılan harf değişimleri
