@@ -391,14 +391,19 @@ export default function Home() {
               <p className="text-center text-gray-600 text-sm mt-8">Henüz rekor kıran yok.</p>
             ) : (
               leaderboard.map((score, index) => (
-                <div key={score.id} className="flex justify-between items-center bg-black/40 px-3 py-2 rounded-xl border border-white/5">
+                <div key={score.id} className={`flex justify-between items-center px-3 py-2 rounded-xl border transition-colors ${score.nickname === nickname ? 'bg-indigo-600/20 border-indigo-500/30 shadow-[inset_0_0_15px_rgba(79,70,229,0.1)]' : 'bg-black/40 border-white/5'}`}>
                   <div className="flex items-center gap-2">
                     <span className={`text-xs font-black ${index === 0 ? 'text-yellow-400' : index === 1 ? 'text-gray-300' : index === 2 ? 'text-amber-600' : 'text-gray-600'}`}>
                       {index + 1}
                     </span>
-                    <span className="text-sm font-bold text-gray-200 truncate max-w-[100px]">{score.nickname}</span>
+                    <span className={`text-sm font-bold truncate max-w-[100px] flex items-center gap-1 ${score.nickname === nickname ? 'text-indigo-200' : 'text-gray-200'}`}>
+                      {score.nickname}
+                      {score.nickname === nickname && <span className="text-[9px] text-indigo-400 uppercase tracking-widest">(Sen)</span>}
+                    </span>
                   </div>
-                  <span className="text-xs font-mono text-gray-400">{score.stopped_time.toFixed(3)}s</span>
+                  <span className={`text-xs font-mono font-bold ${score.nickname === nickname ? 'text-indigo-300' : 'text-gray-400'}`}>
+                    {score.stopped_time.toFixed(3)}s
+                  </span>
                 </div>
               ))
             )}
@@ -420,9 +425,14 @@ export default function Home() {
             <button onClick={() => setIsRulesOpen(true)} className="text-[10px] text-indigo-400 font-bold uppercase tracking-widest active:scale-95 transition-transform">
               Nasıl Oynanır?
             </button>
-            <button onClick={handleChangeName} className="text-[10px] text-gray-500 font-bold uppercase tracking-widest active:scale-95 transition-transform">
-              İsim Değiştir
-            </button>
+            <div className="flex items-center gap-2">
+              <span className="text-[10px] text-gray-500 font-medium truncate max-w-[80px]">
+                {nickname}
+              </span>
+              <button onClick={handleChangeName} className="text-[10px] text-gray-400 hover:text-white font-bold uppercase tracking-widest active:scale-95 transition-transform">
+                DEĞİŞTİR
+              </button>
+            </div>
           </div>
         </div>
       </div>
